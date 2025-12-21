@@ -1,0 +1,22 @@
+# Python compilation
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller generation artifacts
+build/
+dist/
+*.spec
+
+# IDE settings
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
