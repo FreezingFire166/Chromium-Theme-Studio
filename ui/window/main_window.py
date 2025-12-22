@@ -17,7 +17,7 @@ from utils.persistent_settings import PersistentSettings
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Chromium Theme Studio V2")
+        self.setWindowTitle("Chromium Theme Studio v2.0.5") # UPDATED VERSION
         self.resize(1400, 950)
         self.setAcceptDrops(True)
         self.p_settings = PersistentSettings() 

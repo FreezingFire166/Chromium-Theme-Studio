@@ -1,115 +1,201 @@
-from PySide6.QtGui import QPixmap, QPainter, QColor
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtGui import QPixmap, QPainter, QColor, QFont, QFontMetrics, QBrush, QPen
+from PySide6.QtCore import QTimer, Qt, QRect
 
 class PreviewRenderer:
     def __init__(self, window):
-        self.w = window # This will now be the HomePage instance
+        self.w = window 
         self._pixmap_cache = {}
         self._render_timer = QTimer(); self._render_timer.setSingleShot(True)
         self._render_timer.timeout.connect(self._do_image_render)
 
     def c(self, key, default):
-        d = self.w.theme_data # Accessed via property in HomePage
+        d = self.w.theme_data 
         hex_val = d.get(key, default)
-        if not hex_val or not hex_val.startswith("#") or len(hex_val) != 9: return hex_val 
+        if not hex_val or not hex_val.startswith("#") or len(hex_val) != 9: return QColor(default)
         try:
             r = int(hex_val[1:3], 16); g = int(hex_val[3:5], 16); b = int(hex_val[5:7], 16); a = int(hex_val[7:9], 16)
-            return f"rgba({r}, {g}, {b}, {a})"
-        except ValueError: return default
+            return QColor(r, g, b, a)
+        except ValueError: return QColor(default)
 
     def apply_theme(self):
-        mode = self.w.browser_combo.currentText()
-        is_incognito = self.w.chk_incognito.isChecked()
-        
-        if mode == "Edge": radius = "4px"; margin_bottom = "0px"
-        else: radius = "12px"; margin_bottom = "-1px"
-
-        k_frame = "frame_incognito" if is_incognito else "frame"
-        k_inactive_tab = "inactive_tab_incognito" if is_incognito else "inactive_tab"
-        
-        self.w.canvas.setStyleSheet(f"background-color: {self.c(k_frame, '#CC0000FF')}; border-radius: 6px;")
-        self.w.toolbar.setStyleSheet(f"background-color: {self.c('toolbar', '#FFFFFFFF')};")
-        
-        self.w.lbl_active.setStyleSheet(f"""
-            background-color: {self.c('active_tab', '#FFFFFFFF')}; color: {self.c('tab_text', '#000000FF')};
-            padding: 8px 20px; border-top-left-radius: {radius}; border-top-right-radius: {radius};
-            border-bottom-left-radius: 0px; border-bottom-right-radius: 0px;
-            font-weight: bold; font-family: 'Segoe UI', sans-serif; margin-bottom: {margin_bottom}; 
-        """)
-        self.w.lbl_inactive.setStyleSheet(f"""
-            background-color: {self.c(k_inactive_tab, '#E68A8AFF')}; color: {self.c('inactive_tab_text', '#555555FF')};
-            padding: 8px 20px; border-radius: {radius}; margin-top: 4px; margin-bottom: 4px; font-family: 'Segoe UI', sans-serif;
-        """)
-        tint = self.c("button_tint", "#555555FF")
-        btn_style = f"font-size: 16px; font-weight: bold; color: {tint}; border-radius: 14px; padding: 4px;"
-        self.w.btn_back.setStyleSheet(btn_style); self.w.btn_fwd.setStyleSheet(btn_style)
-        bm_color = self.c("bookmark_text", "#555555FF")
-        for b in self.w.bms: b.setStyleSheet(f"font-size: 11px; color: {bm_color}; padding: 4px 8px; border-radius: 4px;")
-        tb_text = self.c("toolbar_text", "#333333FF")
-        self.w.url_text.setStyleSheet(f"border: none; color: {tb_text}; font-size: 12px;")
         self._do_image_render()
 
     def apply_image(self, mode=None): self._do_image_render()
 
     def _do_image_render(self):
-        is_incognito = self.w.chk_incognito.isChecked()
-        k_frame_img = "frame_image_incognito" if is_incognito else "frame_image"
-        self._render_layer(k_frame_img, self.w.frame_img_layer)
-        if is_incognito: self.w.bg_img.hide()
-        else: self._render_layer("ntp_image", self.w.bg_img)
+        self._render_ntp_layer()
+        self._render_ui_layer()
 
-    def _render_layer(self, mode, target_widget):
+    def _render_ntp_layer(self):
+        is_incognito = self.w.chk_incognito.isChecked()
+        if is_incognito:
+            self.w.bg_img.hide()
+            return
+            
+        mode = "ntp_image"
         path = self.w.theme_data.get(mode)
-        if not path: target_widget.hide(); return
+        if not path: 
+            self.w.bg_img.hide()
+            return
+
         if path not in self._pixmap_cache: self._pixmap_cache[path] = QPixmap(path)
         pix = self._pixmap_cache[path]
         if pix.isNull(): return
 
+        props = self.w.theme_data.get(mode + "_properties")
         if mode == self.w.current_edit_mode:
             scale = self.w.sl_scale.value() / 100.0; off_x = self.w.sl_x.value(); off_y = self.w.sl_y.value()
+        elif props:
+            scale = props.get('scale', 100) / 100.0; off_x = props.get('x', 0); off_y = props.get('y', 0)
         else:
-            off_x = 0; off_y = 0
-            if "ntp_image" in mode: scale = max(self.w.canvas.width() / pix.width(), self.w.canvas.height() / pix.height())
-            else: scale = 120.0 / pix.height() 
+            scale = max(self.w.canvas.width() / pix.width(), self.w.canvas.height() / pix.height()); off_x = 0; off_y = 0
 
         new_w = max(1, int(pix.width() * scale)); new_h = max(1, int(pix.height() * scale))
         scaled_pix = pix.scaled(new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
-        if "frame_image" in mode:
-            canvas_w = self.w.canvas.width(); canvas_h = 120 
-            target_pix = QPixmap(canvas_w, canvas_h); target_pix.fill(Qt.transparent)
-            draw_x = (canvas_w - new_w) // 2 + off_x if new_w < canvas_w else off_x; draw_y = off_y
-        else:
-            canvas_w = self.w.canvas.width(); canvas_h = self.w.canvas.height()
-            target_pix = QPixmap(canvas_w, canvas_h); target_pix.fill(Qt.transparent)
-            draw_x = (canvas_w - new_w) // 2 + off_x; draw_y = (canvas_h - new_h) // 2 + off_y
-
+        canvas_w = self.w.canvas.width(); canvas_h = self.w.canvas.height()
+        target_pix = QPixmap(canvas_w, canvas_h); target_pix.fill(Qt.transparent)
+        draw_x = (canvas_w - new_w) // 2 + off_x; draw_y = (canvas_h - new_h) // 2 + off_y
+        
         p = QPainter(target_pix); p.setRenderHint(QPainter.Antialiasing); p.setRenderHint(QPainter.SmoothPixmapTransform)
         p.drawPixmap(int(draw_x), int(draw_y), scaled_pix); p.end()
-        target_widget.resize(canvas_w, canvas_h); target_widget.setPixmap(target_pix); target_widget.show(); target_widget.move(0, 0)
-
-    def get_processed_pixmap(self, mode):
-        path = self.w.theme_data.get(mode)
-        if not path: return None
-        pix = QPixmap(path)
-        if pix.isNull(): return None
         
-        if mode == self.w.current_edit_mode:
-            scale = self.w.sl_scale.value() / 100.0; off_x = self.w.sl_x.value(); off_y = self.w.sl_y.value()
-        else:
-            off_x = 0; off_y = 0
-            if "ntp_image" in mode: scale = max(self.w.canvas.width() / pix.width(), self.w.canvas.height() / pix.height())
-            else: scale = 120.0 / pix.height()
+        self.w.bg_img.resize(canvas_w, canvas_h); self.w.bg_img.setPixmap(target_pix); self.w.bg_img.show(); self.w.bg_img.move(0, 0)
 
-        new_w = max(1, int(pix.width() * scale)); new_h = max(1, int(pix.height() * scale))
-        if "frame_image" in mode:
-            canvas_w = self.w.canvas.width(); canvas_h = 120 
-            draw_x = (canvas_w - new_w) // 2 + off_x if new_w < canvas_w else off_x; draw_y = off_y
-        else:
-            canvas_w = self.w.canvas.width(); canvas_h = self.w.canvas.height()
-            draw_x = (canvas_w - new_w) // 2 + off_x; draw_y = (canvas_h - new_h) // 2 + off_y
+    def _render_ui_layer(self):
+        w = self.w.canvas.width(); h = self.w.canvas.height()
+        target_pix = QPixmap(w, h); target_pix.fill(Qt.transparent)
+        p = QPainter(target_pix)
+        p.setRenderHint(QPainter.Antialiasing); p.setRenderHint(QPainter.SmoothPixmapTransform)
 
-        target_pix = QPixmap(canvas_w, canvas_h); target_pix.fill(Qt.transparent)
-        p = QPainter(target_pix); p.setRenderHint(QPainter.SmoothPixmapTransform)
-        p.drawPixmap(int(draw_x), int(draw_y), new_w, new_h, pix); p.end()
-        return target_pix
+        # -- Metrics & Setup --
+        is_incognito = self.w.chk_incognito.isChecked()
+        browser_mode = self.w.browser_combo.currentText() # Chrome, Brave, Edge
+        
+        frame_h = 56 if browser_mode != "Edge" else 48
+        tabs_h = 38
+        # Combined height for the "Frame Image" area
+        top_area_h = frame_h + tabs_h
+        
+        toolbar_h = 44
+        
+        k_frame = "frame_incognito" if is_incognito else "frame"
+        k_inactive_tab = "inactive_tab_incognito" if is_incognito else "inactive_tab"
+        
+        col_frame = self.c(k_frame, '#CC0000FF')
+        col_active_tab = self.c('active_tab', '#FFFFFFFF')
+        col_inactive_tab = self.c(k_inactive_tab, '#E68A8AFF')
+        col_tab_text = self.c('tab_text', '#000000FF')
+        col_inactive_text = self.c('inactive_tab_text', '#555555FF')
+        col_toolbar = self.c('toolbar', '#FFFFFFFF')
+        col_toolbar_text = self.c('toolbar_text', '#333333FF')
+        col_bookmark_text = self.c('bookmark_text', '#555555FF')
+
+        # 1. Background Color for Top Area (Frame + Tabs)
+        p.fillRect(0, 0, w, top_area_h, col_frame)
+        
+        # 2. Frame Image (Rendered over the entire top area)
+        k_frame_img = "frame_image_incognito" if is_incognito else "frame_image"
+        img_path = self.w.theme_data.get(k_frame_img)
+        has_image = False
+        
+        if img_path:
+            if img_path not in self._pixmap_cache: self._pixmap_cache[img_path] = QPixmap(img_path)
+            pix = self._pixmap_cache[img_path]
+            if not pix.isNull():
+                has_image = True
+                props = self.w.theme_data.get(k_frame_img + "_properties")
+                if k_frame_img == self.w.current_edit_mode:
+                    scale = self.w.sl_scale.value() / 100.0; off_x = self.w.sl_x.value(); off_y = self.w.sl_y.value()
+                elif props:
+                    scale = props.get('scale', 100) / 100.0; off_x = props.get('x', 0); off_y = props.get('y', 0)
+                else:
+                    scale = 120.0 / pix.height(); off_x = 0; off_y = 0
+                
+                scaled = pix.scaled(int(pix.width() * scale), int(pix.height() * scale), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                # Align logic: Center vertically within the reference 120px height, then clip to our top area
+                sy = max(0, (scaled.height() - 120) // 2)
+                
+                # Destination: The combined top area
+                # Source: The image crop
+                src_rect = QRect(max(0, off_x), max(0, sy + off_y), w, top_area_h)
+                p.drawPixmap(QRect(0, 0, w, top_area_h), scaled, src_rect)
+
+        # 3. Tab Strip Background (Optional Tint)
+        tabs_y = frame_h
+        
+        # Only draw the "darker" strip if there is NO image, 
+        # OR you can make it semi-transparent to tint the image.
+        # For now, if there is an image, we assume the image provides the texture.
+        if not has_image:
+             p.fillRect(0, tabs_y, w, tabs_h, col_frame.darker(108))
+
+        font = QFont("Segoe UI", 9); bold = QFont("Segoe UI", 9, QFont.Bold)
+        tab_w = 200 if browser_mode == "Edge" else 140
+        tab_h = tabs_h - 8
+        tab_y = tabs_y + 4
+        fm = QFontMetrics(font)
+        
+        radius = 4 if browser_mode == "Edge" else 8
+
+        # Inactive Tab
+        p.setFont(font)
+        x = 20
+        rect = QRect(x, tab_y, tab_w, tab_h)
+        p.setPen(Qt.NoPen); p.setBrush(col_inactive_tab)
+        p.drawRoundedRect(rect, radius, radius)
+        p.setPen(col_inactive_text)
+        ty = rect.y() + (rect.height() + fm.ascent() - fm.descent()) // 2
+        p.drawText(rect.x() + 14, ty, "Inactive Tab")
+
+        # Active Tab
+        x += tab_w + 10
+        rect = QRect(x, tab_y, tab_w, tab_h)
+        if browser_mode == "Chrome":
+             # Connect to toolbar visually
+             p.setBrush(col_active_tab)
+             p.drawRoundedRect(rect.x(), rect.y(), rect.width(), rect.height() + 5, radius, radius)
+        else:
+             p.setBrush(col_active_tab)
+             p.drawRoundedRect(rect, radius, radius)
+
+        p.setFont(bold); p.setPen(col_tab_text)
+        ty = rect.y() + (rect.height() + fm.ascent() - fm.descent()) // 2
+        p.drawText(rect.x() + 14, ty, "Active Tab")
+
+        # 4. Toolbar
+        toolbar_y = tabs_y + tabs_h
+        p.fillRect(0, toolbar_y, w, toolbar_h, col_toolbar)
+
+        # URL Bar
+        p.setFont(font); p.setPen(col_toolbar_text)
+        p.drawText(15, toolbar_y + 28, "<")
+        p.drawText(40, toolbar_y + 28, ">")
+        
+        url_rect = QRect(70, toolbar_y + 8, w - 140, toolbar_h - 16)
+        p.setBrush(QColor(240, 240, 240) if col_toolbar.lightness() > 128 else QColor(40, 40, 40))
+        p.setPen(Qt.NoPen)
+        p.drawRoundedRect(url_rect, 14, 14)
+        
+        p.setPen(col_toolbar_text)
+        
+        # BRAVE LION ICON
+        text_x = url_rect.x() + 12
+        if browser_mode == "Brave":
+            p.drawText(text_x, url_rect.y() + 20, "🦁")
+            text_x += 20 
+
+        p.drawText(text_x, url_rect.y() + 20, "https://example.com")
+
+        # 5. Bookmarks
+        by = toolbar_y + toolbar_h + 22
+        p.setPen(col_bookmark_text)
+        bx = 20
+        for name in ["Gmail", "YouTube", "Maps"]:
+            p.drawText(bx, by, name)
+            bx += 80
+
+        p.end()
+        self.w.ui_layer.setPixmap(target_pix)
+        self.w.ui_layer.resize(w, h)
+        self.w.ui_layer.show()

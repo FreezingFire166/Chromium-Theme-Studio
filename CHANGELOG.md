@@ -2,7 +2,17 @@
 
 
 
+
 All notable changes to the "Chromium Theme Studio" project will be documented in this file.
+
+
+
+## [2.0.5] - 22/12/2025
+
+### 🐛 Bug Fixes
+* **Image Persistence:** Fixed a bug where image parameters (scale/position) were resetting to defaults when switching editing modes.
+* **NTP Image Visibility:** Fixed an issue where the New Tab Page background image was hidden behind the UI layer in the preview.
+* **Guide Resize:** The red dotted guide overlay now correctly resizes when applying custom resolutions.
 
 
 
