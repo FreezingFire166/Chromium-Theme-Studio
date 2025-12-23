@@ -20,3 +20,11 @@ Thumbs.db
 # Virtual environments
 venv/
 env/
+
+# App Logs & Local Settings
+*.log
+*.ini
+
+# Exported Theme Packages (Keep repo clean of exports)
+*.zip
+*.crx

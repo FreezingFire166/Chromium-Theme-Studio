@@ -10,22 +10,25 @@ from ui.controls.theme_toggle import ThemeToggle
 from ui.menu.bloom_tile import BloomTile
 from utils.color_utils import get_color_name
 
-# ─── HELPER CLASSES (Kept in-file as requested) ───
+# ─── UPDATED: Fullscreen Window ───
 
 class FullscreenWindow(QWidget):
     closed_signal = Signal()
     def __init__(self, content, parent=None):
         super().__init__(parent, Qt.Window | Qt.FramelessWindowHint)
-        self.setStyleSheet("background-color: #18191A;")
+        self.setStyleSheet("background-color: #000000;")
         self.layout = QVBoxLayout(self); self.layout.setContentsMargins(0,0,0,0)
         self.content = content; self.layout.addWidget(self.content)
-        self.btn_exit = QPushButton("×", self); self.btn_exit.setFixedSize(60, 60); self.btn_exit.setCursor(Qt.PointingHandCursor)
-        self.btn_exit.setStyleSheet("QPushButton { background-color: rgba(220, 20, 60, 0.9); color: white; border-radius: 30px; font-size: 32px; font-weight: bold; border: 2px solid white; } QPushButton:hover { background-color: red; }")
-        self.btn_exit.clicked.connect(self.close); self.btn_exit.move(self.screen().size().width() - 80, 20)
-    
-    def resizeEvent(self, event): self.btn_exit.move(self.width() - 80, 20); super().resizeEvent(event)
+        
+        self.lbl_hint = QLabel("Press ESC to exit fullscreen", self)
+        self.lbl_hint.setStyleSheet("background-color: rgba(0, 0, 0, 0.5); color: rgba(255, 255, 255, 0.8); font-size: 13px; padding: 6px 12px; border-radius: 4px;")
+        self.lbl_hint.adjustSize()
+        self.lbl_hint.move(20, 20) 
+        self.lbl_hint.raise_()
+
+    def resizeEvent(self, event): super().resizeEvent(event)
     def keyPressEvent(self, event): 
-        if event.key() == Qt.Key_Escape: self.close()
+        if event.key() in [Qt.Key_Escape, Qt.Key_F, Qt.Key_F11]: self.close()
     def closeEvent(self, event): self.closed_signal.emit(); super().closeEvent(event)
 
 class MenuHeader(QPushButton):
@@ -40,19 +43,18 @@ class HomePage(QWidget):
         super().__init__()
         self.mw = main_window 
         self.current_base_mode = "frame"; self.current_edit_mode = "frame"; self.fs_window = None
+        self.menu_groups = []
+        self.saved_canvas_size = None # Store size before fullscreen
         
-        # FIXED: Layout Anchoring to prevent "jumping"
-        # We use top margin (60) to position content, removing the need for a top spacer
         outer_layout = QVBoxLayout(self)
         outer_layout.setContentsMargins(0, 60, 0, 0)
         
         self.layout_inner = QHBoxLayout(); self.layout_inner.setContentsMargins(0,0,0,0); self.layout_inner.setSpacing(0)
         
-        # Modular initialization
         self.init_ui()
         
         outer_layout.addLayout(self.layout_inner)
-        outer_layout.addStretch() # Fills bottom space
+        outer_layout.addStretch() 
         
         self.renderer = PreviewRenderer(self)
     
@@ -62,19 +64,11 @@ class HomePage(QWidget):
     def p_settings(self): return self.mw.p_settings
         
     def init_ui(self):
-        """Orchestrates UI construction using helper methods."""
-        # 1. Preview Column (Left)
         self.layout_inner.addWidget(self._init_preview_column(), 1)
-
-        # 2. Menu Sidebar (Middle)
         self._init_menu_panel()
         self.layout_inner.addWidget(self.menu_frame)
-
-        # 3. Controls Sidebar (Right)
         self._init_control_panel()
         self.layout_inner.addWidget(self.ctrl_frame)
-
-        # Set default selection
         if self.menu_tiles: self.menu_tiles[0].setChecked(True)
 
     def _init_preview_column(self):
@@ -96,7 +90,10 @@ class HomePage(QWidget):
 
         # Canvas Area
         self.canvas_container = QFrame(); self.canvas_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        canvas_center = QVBoxLayout(self.canvas_container); canvas_center.setAlignment(Qt.AlignCenter)
+        # Save reference to layout to adjust margins later
+        self.canvas_layout = QVBoxLayout(self.canvas_container)
+        self.canvas_layout.setAlignment(Qt.AlignCenter)
+        
         self.canvas = QFrame(); self.canvas.setFixedSize(1000, 562); self.canvas.setStyleSheet("background-color: #CC0000; border-radius: 6px;")
         canvas_inner = QVBoxLayout(self.canvas); canvas_inner.setContentsMargins(0,0,0,0)
         
@@ -106,12 +103,13 @@ class HomePage(QWidget):
         
         # Guide Layer
         self.guides_layer = QFrame(self.canvas)
-        self.guides_layer.setStyleSheet("border: 2px dashed rgba(255, 0, 0, 0.4); background: transparent;")
-        self.guides_layer.setGeometry(0, 0, 1000, 562) # Initial size
+        self.guides_layer.setObjectName("guides_layer")
+        self.guides_layer.setStyleSheet("background: transparent;")
+        self.guides_layer.setGeometry(0, 0, 1000, 562)
         self.guides_layer.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.guides_layer.raise_()
 
-        canvas_inner.addWidget(self.ui_layer); canvas_center.addWidget(self.canvas)
+        canvas_inner.addWidget(self.ui_layer); self.canvas_layout.addWidget(self.canvas)
         self.col_prev_layout.addWidget(self.canvas_container)
 
         # Resolution Controls
@@ -130,7 +128,6 @@ class HomePage(QWidget):
             b.setProperty("class", "resBtn")
             res_row.addWidget(b, 0, Qt.AlignTop)
 
-        # Custom Input Container (Stacked Vertically: Width Top, Height Bottom)
         self.res_custom_container = QWidget(); self.res_custom_container.hide()
         rc_lay = QVBoxLayout(self.res_custom_container)
         rc_lay.setContentsMargins(0,0,0,0); rc_lay.setSpacing(4); rc_lay.setAlignment(Qt.AlignTop)
@@ -146,8 +143,9 @@ class HomePage(QWidget):
         res_row.addWidget(self.res_custom_container, 0, Qt.AlignTop)
         res_row.addStretch()
         
-        btn_fs = QPushButton("⛶"); btn_fs.setFixedSize(35,35); btn_fs.clicked.connect(self.toggle_fullscreen)
-        btn_fs.setStyleSheet("font-size: 16px; font-weight: bold; border-radius: 4px; border: 1px solid #888;")
+        btn_fs = QPushButton("⛶ Fullscreen"); 
+        btn_fs.clicked.connect(self.toggle_fullscreen)
+        btn_fs.setProperty("class", "resBtn") 
         res_row.addWidget(btn_fs)
         
         self.col_prev_layout.addLayout(res_row)
@@ -159,14 +157,23 @@ class HomePage(QWidget):
         self.btn_group = QButtonGroup(); self.btn_group.setExclusive(True)
         self.menu_tiles = []; self.menu_map = {} 
         
-        self.add_menu_item("Frame", "frame")
+        basic_group = self.add_menu_group("Basic")
+        self.add_sub_item(basic_group, "Frame", "frame")
+        self.add_sub_item(basic_group, "Background", "ntp_background") 
+        
+        if self.menu_groups:
+             self.menu_groups[0][0].setChecked(True)
+
         tab_group = self.add_menu_group("Tabs")
         self.add_sub_item(tab_group, "Active Tab", "active_tab"); self.add_sub_item(tab_group, "Active Text", "tab_text")
         self.add_sub_item(tab_group, "Inactive Tab", "inactive_tab"); self.add_sub_item(tab_group, "Inactive Text", "inactive_tab_text")
         
         tb_group = self.add_menu_group("Toolbar")
-        self.add_sub_item(tb_group, "Background", "toolbar"); self.add_sub_item(tb_group, "Text", "toolbar_text")
-        self.add_sub_item(tb_group, "Buttons", "button_tint"); self.add_sub_item(tb_group, "Bookmarks", "bookmark_text")
+        self.add_sub_item(tb_group, "Background", "toolbar")
+        self.add_sub_item(tb_group, "Buttons", "button_tint")
+        self.add_sub_item(tb_group, "Bookmarks", "bookmark_text")
+        self.add_sub_item(tb_group, "Search Bar", "omnibox_background")
+        self.add_sub_item(tb_group, "Search Text", "omnibox_text")
         
         img_group = self.add_menu_group("Images")
         self.add_sub_item(img_group, "Frame Image", "frame_image"); self.add_sub_item(img_group, "NTP Image", "ntp_image")
@@ -181,6 +188,14 @@ class HomePage(QWidget):
         
         # Color Page
         pg_color = QWidget(); l_col = QVBoxLayout(pg_color); l_col.setAlignment(Qt.AlignTop); l_col.setContentsMargins(0,0,0,0)
+        
+        if self.p_settings.get_first_run():
+             lbl = QLabel("Welcome to Theme Studio! ✨")
+             lbl.setStyleSheet("font-size: 18px; font-weight: bold; color: #1A73E8; margin: 10px 0;")
+             lbl.setAlignment(Qt.AlignCenter)
+             l_col.addWidget(lbl)
+             self.p_settings.set_first_run(False)
+
         l_col.addWidget(QLabel("CURRENT COLOR", objectName="sectionHeader"))
         
         row_prev = QHBoxLayout(); row_prev.setSpacing(10)
@@ -237,10 +252,20 @@ class HomePage(QWidget):
     def add_menu_item(self, label, mode_key):
         btn = BloomTile(label); btn.clicked.connect(lambda: self.set_mode(mode_key))
         self.menu_layout.addWidget(btn); self.btn_group.addButton(btn); self.menu_tiles.append(btn); self.menu_map[label] = mode_key; return btn
+    
     def add_menu_group(self, title):
         header = MenuHeader(title); self.menu_layout.addWidget(header)
         container = QWidget(); layout = QVBoxLayout(container); layout.setContentsMargins(10, 0, 0, 10); layout.setSpacing(5); container.hide() 
-        header.toggled.connect(lambda c: container.setVisible(c)); self.menu_layout.addWidget(container); return layout
+        self.menu_groups.append((header, container))
+        header.toggled.connect(lambda c, h=header: self.toggle_group(h, c))
+        self.menu_layout.addWidget(container); return layout
+
+    def toggle_group(self, header, checked):
+        for h, c in self.menu_groups:
+            if h == header: c.setVisible(checked)
+            elif checked:
+                h.blockSignals(True); h.setChecked(False); c.setVisible(False); h.blockSignals(False)
+
     def add_sub_item(self, layout, label, mode_key):
         btn = BloomTile(label); btn.setFixedHeight(35); btn.clicked.connect(lambda: self.set_mode(mode_key))
         layout.addWidget(btn); self.btn_group.addButton(btn); self.menu_tiles.append(btn); self.menu_map[label] = mode_key 
@@ -252,6 +277,8 @@ class HomePage(QWidget):
             if mode == "frame": real_mode = "frame_incognito"
             elif mode == "inactive_tab": real_mode = "inactive_tab_incognito"
             elif mode == "frame_image": real_mode = "frame_image_incognito"
+            elif mode == "omnibox_background": real_mode = "omnibox_background_incognito"
+            elif mode == "omnibox_text": real_mode = "omnibox_text_incognito"
         self.current_edit_mode = real_mode
         if "image" in real_mode: 
             self.stack.setCurrentIndex(1)
@@ -276,17 +303,14 @@ class HomePage(QWidget):
             self.sl_y.setValue(props.get('y', 0))
             self.block_signals(False)
             return
-
         path = self.theme_data.get(mode)
         if not path or not os.path.exists(path):
             self.block_signals(True)
             self.sl_scale.setValue(100); self.sl_x.setValue(0); self.sl_y.setValue(0)
             self.block_signals(False)
             return
-
         pix = QPixmap(path)
         if pix.isNull(): return
-
         self.block_signals(True)
         if "ntp_image" in mode:
             scale = max(self.canvas.width() / pix.width(), self.canvas.height() / pix.height()) * 100
@@ -328,16 +352,12 @@ class HomePage(QWidget):
         
         if self.current_edit_mode + "_properties" in self.theme_data:
             del self.theme_data[self.current_edit_mode + "_properties"]
-
         if not pix.isNull():
             self.load_image_params(self.current_edit_mode)
-            
         self.renderer.apply_image(self.current_edit_mode)
 
-    # ─── UPDATED: Canvas & Overlay Resize Helper ───
     def _resize_canvas_and_overlays(self, w, h):
         self.canvas.setFixedSize(w, h)
-        # Fix: Resize the guides overlay to match the canvas
         self.guides_layer.resize(w, h)
         self.renderer.apply_image(self.current_edit_mode)
 
@@ -361,12 +381,30 @@ class HomePage(QWidget):
         if self.fs_window: self.fs_window.close()
     
     def restore_canvas(self): 
+        # Restore original size
+        if self.saved_canvas_size:
+            self._resize_canvas_and_overlays(self.saved_canvas_size.width(), self.saved_canvas_size.height())
+            self.saved_canvas_size = None
+            
+        # Reset layout margins (if modified)
+        self.canvas_layout.setContentsMargins(9, 9, 9, 9) # Restore default spacing if needed, typically QLayout defaults
+        
         self.col_prev_layout.insertWidget(1, self.canvas_container)
         self.fs_window = None
 
     def toggle_fullscreen(self):
         if self.fs_window and self.fs_window.isVisible(): self.exit_fullscreen()
         else: 
+            # 1. Save current size
+            self.saved_canvas_size = self.canvas.size()
+            
+            # 2. Resize canvas to screen size
+            screen_geo = self.screen().geometry()
+            self._resize_canvas_and_overlays(screen_geo.width(), screen_geo.height())
+            
+            # 3. Remove container margins to ensure true fullscreen (no black border from layout)
+            self.canvas_layout.setContentsMargins(0, 0, 0, 0)
+            
             self.fs_window = FullscreenWindow(self.canvas_container)
             self.fs_window.closed_signal.connect(self.restore_canvas)
             self.fs_window.showFullScreen()

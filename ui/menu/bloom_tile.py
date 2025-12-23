@@ -46,7 +46,10 @@ class BloomTile(QPushButton):
             bg = QColor("#3A3B3C") if is_dark_mode else QColor("#FFFFFF")
             accent = QColor("#8AB4F8") if is_dark_mode else QColor("#1A73E8")
             p.setBrush(bg); p.setPen(Qt.NoPen); p.drawRoundedRect(self.rect(), 8, 8)
-            p.setBrush(accent); p.drawRoundedRect(0, 10, 4, 25, 2, 2)
+            
+            # REVERTED: Shifted slightly up to y=8 to look more centered/higher as requested
+            p.setBrush(accent); p.drawRoundedRect(0, 8, 4, 20, 2, 2)
+            
             final_text_color = QColor("#E8EAED") if is_dark_mode else QColor("#000000")
             font = self.font(); font.setBold(True); p.setFont(font)
         else:

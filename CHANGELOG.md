@@ -7,6 +7,33 @@ All notable changes to the "Chromium Theme Studio" project will be documented in
 
 
 
+## [v2.2.0] - 2025-12-23
+
+### 🚀 New Features
+- **True Fullscreen Mode:** The preview now resizes to fill your entire monitor (fixing previous letterboxing). Added keyboard shortcuts (`F11`, `F`) to toggle and `ESC` to exit, along with a helpful overlay.
+- **Advanced Customization:**
+    - Added **NTP Background** color support.
+    - Added full control over **Search Bar (Omnibox)** background and text colors.
+    - Added **Incognito Defaults** for the search bar to prevent style mismatches.
+- **Professional Presets:** Replaced legacy presets with a modern collection: *Matte Black, Clean White, Nordic, Slate Pro, and Soft Dark*.
+- **Welcome Experience:** Added a friendly "Welcome" greeting that appears only on the very first app launch.
+
+### ⚡ Improvements & Changes
+- **UI Polish:**
+    - Replaced the debug "red dotted line" with a clean, theme-aware boundary for the preview area.
+    - Navigation buttons (`< >`) now correctly respect the **"Buttons"** tint color.
+    - Restyled the **Fullscreen** button to match the app's professional aesthetic.
+    - Reverted the selection indicator line on menu tiles to its optimal position.
+- **Menu UX:** Implemented "Accordion" behavior—opening one menu group (like "Basic") now automatically closes others to keep the interface clean.
+- **Export Engine:** Updated `ExportManager` to fully support the new Omnibox and Background keys in the generated `manifest.json`.
+
+### 🐛 Bug Fixes
+- **Settings Persistence:** Fixed a critical issue where "Always Dark Mode" and other preferences were not saving to disk or restoring upon restart.
+- **Search Bar Logic:** Removed automatic color override on the search bar; it now strictly follows user settings.
+- **Menu Organization:** Moved "Frame" into a new **"Basic"** group and removed the redundant "Text" button from the Toolbar section.
+
+
+
 ## [2.0.5] - 22/12/2025
 
 ### 🐛 Bug Fixes

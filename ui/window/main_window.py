@@ -17,7 +17,7 @@ from utils.persistent_settings import PersistentSettings
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Chromium Theme Studio v2.0.5") # UPDATED VERSION
+        self.setWindowTitle("Chromium Theme Studio v2.0.5")
         self.resize(1400, 950)
         self.setAcceptDrops(True)
         self.p_settings = PersistentSettings() 
@@ -25,6 +25,9 @@ class MainWindow(QMainWindow):
             "frame": "#CC0000FF", "toolbar": "#FFFFFFFF", "tab_text": "#000000FF", 
             "active_tab": "#FFFFFFFF", "inactive_tab": "#E68A8AFF", "inactive_tab_text": "#555555FF", 
             "button_tint": "#555555FF", "bookmark_text": "#555555FF", "toolbar_text": "#333333FF",
+            "ntp_background": "#FFFFFFFF",
+            "omnibox_background": "#F0F0F0FF", "omnibox_text": "#000000FF",
+            "omnibox_background_incognito": "#3C4043FF", "omnibox_text_incognito": "#E8EAEDFF",
             "ntp_image": None, "frame_image": None, "img_scale": 100, "img_off_x": 0, "img_off_y": 0,
             "frame_incognito": "#2B2E31FF", "inactive_tab_incognito": "#3C4043FF", "frame_image_incognito": None
         }
@@ -42,7 +45,7 @@ class MainWindow(QMainWindow):
         self.top_bar.btn_help.clicked.connect(lambda: self.switch_view(3))
         
         self.combo_presets = QComboBox()
-        self.combo_presets.addItems(["Presets...", "Dracula", "Midnight", "Solarized", "High Contrast"])
+        self.combo_presets.addItems(["Presets...", "Matte Black", "Clean White", "Nordic", "Slate Pro", "Soft Dark"])
         self.combo_presets.currentIndexChanged.connect(self.apply_preset)
         self.combo_presets.setFixedWidth(110)
         self.top_bar.group_home.layout().insertWidget(0, self.combo_presets)
@@ -65,11 +68,17 @@ class MainWindow(QMainWindow):
         self.page_help = HelpPage()
         self.content_stack.addWidget(self.page_help)
 
+        # UPDATED: F11 Shortcut added
         QShortcut(QKeySequence("Ctrl+Z"), self).activated.connect(self.perform_undo)
         QShortcut(QKeySequence("Ctrl+Y"), self).activated.connect(self.perform_redo)
         QShortcut(QKeySequence(Qt.Key_Escape), self).activated.connect(self.home_page.exit_fullscreen)
+        QShortcut(QKeySequence(Qt.Key_F11), self).activated.connect(self.home_page.toggle_fullscreen)
 
-        self.apply_light_theme()
+        if self.p_settings.get_dark_mode():
+            self.apply_dark_theme()
+        else:
+            self.apply_light_theme()
+
         self.save_state_to_history()
         self.home_page.refresh_from_data()
         self.apply_settings_changes() 
@@ -122,11 +131,37 @@ class MainWindow(QMainWindow):
     
     def apply_preset(self):
         choice = self.combo_presets.currentText()
-        presets = { 
-            "Dracula": {"frame": "#282a36ff", "toolbar": "#44475aff", "tab_text": "#f8f8f2ff", "active_tab": "#44475aff", "inactive_tab": "#6272a4ff", "inactive_tab_text": "#bd93f9ff", "button_tint": "#f8f8f2ff", "bookmark_text": "#f8f8f2ff", "toolbar_text": "#f8f8f2ff"}, 
-            "Midnight": {"frame": "#000000ff", "toolbar": "#1a1a1aff", "tab_text": "#ffffffff", "active_tab": "#1a1a1aff", "inactive_tab": "#333333ff", "inactive_tab_text": "#888888ff", "button_tint": "#ffffffff", "bookmark_text": "#ccccccff", "toolbar_text": "#ffffffff"}, 
-            "Solarized": {"frame": "#002b36ff", "toolbar": "#073642ff", "tab_text": "#839496ff", "active_tab": "#073642ff", "inactive_tab": "#586e75ff", "inactive_tab_text": "#93a1a1ff", "button_tint": "#93a1a1ff", "bookmark_text": "#93a1a1ff", "toolbar_text": "#93a1a1ff"}, 
-            "High Contrast": {"frame": "#000000ff", "toolbar": "#000000ff", "tab_text": "#ffff00ff", "active_tab": "#000000ff", "inactive_tab": "#ffffff", "inactive_tab_text": "#000000ff", "button_tint": "#ffff00ff", "bookmark_text": "#ffff00ff", "toolbar_text": "#ffff00ff"} 
+        presets = {
+            "Matte Black": {
+                "frame": "#1a1a1aff", "toolbar": "#242424ff", "tab_text": "#e0e0e0ff", 
+                "active_tab": "#242424ff", "inactive_tab": "#1a1a1aff", "inactive_tab_text": "#888888ff", 
+                "button_tint": "#e0e0e0ff", "bookmark_text": "#e0e0e0ff", "toolbar_text": "#e0e0e0ff", 
+                "omnibox_background": "#1a1a1aff", "omnibox_text": "#ffffffff", "ntp_background": "#121212ff"
+            },
+            "Clean White": {
+                "frame": "#e8eaedff", "toolbar": "#ffffffff", "tab_text": "#3c4043ff", 
+                "active_tab": "#ffffffff", "inactive_tab": "#e8eaedff", "inactive_tab_text": "#5f6368ff", 
+                "button_tint": "#5f6368ff", "bookmark_text": "#3c4043ff", "toolbar_text": "#3c4043ff", 
+                "omnibox_background": "#f1f3f4ff", "omnibox_text": "#202124ff", "ntp_background": "#ffffffff"
+            },
+            "Nordic": {
+                "frame": "#2e3440ff", "toolbar": "#3b4252ff", "tab_text": "#d8dee9ff", 
+                "active_tab": "#3b4252ff", "inactive_tab": "#2e3440ff", "inactive_tab_text": "#4c566aff", 
+                "button_tint": "#d8dee9ff", "bookmark_text": "#d8dee9ff", "toolbar_text": "#d8dee9ff", 
+                "omnibox_background": "#4c566aff", "omnibox_text": "#eceff4ff", "ntp_background": "#2e3440ff"
+            },
+            "Slate Pro": {
+                "frame": "#1c2636ff", "toolbar": "#232e42ff", "tab_text": "#8fa6c9ff", 
+                "active_tab": "#232e42ff", "inactive_tab": "#151b26ff", "inactive_tab_text": "#4b5e7aff", 
+                "button_tint": "#8fa6c9ff", "bookmark_text": "#8fa6c9ff", "toolbar_text": "#8fa6c9ff", 
+                "omnibox_background": "#151b26ff", "omnibox_text": "#c0d4f5ff", "ntp_background": "#1c2636ff"
+            },
+            "Soft Dark": {
+                "frame": "#2d333bff", "toolbar": "#22272eff", "tab_text": "#adbac7ff", 
+                "active_tab": "#22272eff", "inactive_tab": "#2d333bff", "inactive_tab_text": "#768390ff", 
+                "button_tint": "#adbac7ff", "bookmark_text": "#adbac7ff", "toolbar_text": "#adbac7ff", 
+                "omnibox_background": "#373e47ff", "omnibox_text": "#adbac7ff", "ntp_background": "#22272eff"
+            }
         }
         if choice in presets: self.save_state_to_history(); self.theme_data.update(presets[choice]); self.home_page.refresh_from_data(); self.combo_presets.setCurrentIndex(0)
 
@@ -148,6 +183,7 @@ class MainWindow(QMainWindow):
         self.toggle_dark_mode(state)
 
     def toggle_dark_mode(self, checked):
+        self.p_settings.set_dark_mode(checked)
         if self.home_page.theme_toggle.isChecked() != checked: self.home_page.theme_toggle.setChecked(checked)
         if checked: self.apply_dark_theme()
         else: self.apply_light_theme()

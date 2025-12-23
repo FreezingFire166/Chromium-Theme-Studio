@@ -27,6 +27,7 @@ class ExportManager:
                 overlay_pix = QPixmap(1, 1); overlay_pix.fill(Qt.transparent)
                 overlay_pix.save(os.path.join(images_dir, "theme_frame_overlay.png"), "PNG")
 
+                # MAPPING: UI Keys -> Manifest Keys
                 colors = { 
                     "frame": ExportManager._hex_to_rgb_list(theme_data.get("frame", "#CC0000FF")), 
                     "toolbar": ExportManager._hex_to_rgb_list(theme_data.get("toolbar", "#FFFFFFFF")), 
@@ -35,8 +36,14 @@ class ExportManager:
                     "tab_background": ExportManager._hex_to_rgb_list(theme_data.get("inactive_tab", "#E68A8AFF")), 
                     "bookmark_text": ExportManager._hex_to_rgb_list(theme_data.get("bookmark_text", "#555555FF")), 
                     "ntp_text": ExportManager._hex_to_rgb_list(theme_data.get("toolbar_text", "#333333FF")), 
-                    "button_background": ExportManager._hex_to_rgb_list(theme_data.get("button_tint", "#555555FF")) 
+                    "button_background": ExportManager._hex_to_rgb_list(theme_data.get("button_tint", "#555555FF")),
+                    
+                    # WIRED: Explicit mappings for the new options
+                    "omnibox_background": ExportManager._hex_to_rgb_list(theme_data.get("omnibox_background", "#F0F0F0FF")),
+                    "omnibox_text": ExportManager._hex_to_rgb_list(theme_data.get("omnibox_text", "#000000FF")),
+                    "ntp_background": ExportManager._hex_to_rgb_list(theme_data.get("ntp_background", "#FFFFFFFF")),
                 }
+                
                 if theme_data.get("frame_incognito"): colors["frame_incognito"] = ExportManager._hex_to_rgb_list(theme_data["frame_incognito"])
                 if theme_data.get("frame_incognito_inactive"): colors["frame_incognito_inactive"] = ExportManager._hex_to_rgb_list(theme_data["frame_incognito_inactive"])
 

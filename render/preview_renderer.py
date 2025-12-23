@@ -33,32 +33,35 @@ class PreviewRenderer:
             return
             
         mode = "ntp_image"
-        path = self.w.theme_data.get(mode)
-        if not path: 
-            self.w.bg_img.hide()
-            return
-
-        if path not in self._pixmap_cache: self._pixmap_cache[path] = QPixmap(path)
-        pix = self._pixmap_cache[path]
-        if pix.isNull(): return
-
-        props = self.w.theme_data.get(mode + "_properties")
-        if mode == self.w.current_edit_mode:
-            scale = self.w.sl_scale.value() / 100.0; off_x = self.w.sl_x.value(); off_y = self.w.sl_y.value()
-        elif props:
-            scale = props.get('scale', 100) / 100.0; off_x = props.get('x', 0); off_y = props.get('y', 0)
-        else:
-            scale = max(self.w.canvas.width() / pix.width(), self.w.canvas.height() / pix.height()); off_x = 0; off_y = 0
-
-        new_w = max(1, int(pix.width() * scale)); new_h = max(1, int(pix.height() * scale))
-        scaled_pix = pix.scaled(new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-
-        canvas_w = self.w.canvas.width(); canvas_h = self.w.canvas.height()
-        target_pix = QPixmap(canvas_w, canvas_h); target_pix.fill(Qt.transparent)
-        draw_x = (canvas_w - new_w) // 2 + off_x; draw_y = (canvas_h - new_h) // 2 + off_y
         
-        p = QPainter(target_pix); p.setRenderHint(QPainter.Antialiasing); p.setRenderHint(QPainter.SmoothPixmapTransform)
-        p.drawPixmap(int(draw_x), int(draw_y), scaled_pix); p.end()
+        # 1. Prepare Background Color
+        col_bg = self.c("ntp_background", "#00000000") 
+        
+        canvas_w = self.w.canvas.width(); canvas_h = self.w.canvas.height()
+        target_pix = QPixmap(canvas_w, canvas_h)
+        target_pix.fill(col_bg) 
+
+        # 2. Draw NTP Image
+        path = self.w.theme_data.get(mode)
+        if path:
+            if path not in self._pixmap_cache: self._pixmap_cache[path] = QPixmap(path)
+            pix = self._pixmap_cache[path]
+            if not pix.isNull():
+                props = self.w.theme_data.get(mode + "_properties")
+                if mode == self.w.current_edit_mode:
+                    scale = self.w.sl_scale.value() / 100.0; off_x = self.w.sl_x.value(); off_y = self.w.sl_y.value()
+                elif props:
+                    scale = props.get('scale', 100) / 100.0; off_x = props.get('x', 0); off_y = props.get('y', 0)
+                else:
+                    scale = max(self.w.canvas.width() / pix.width(), self.w.canvas.height() / pix.height()); off_x = 0; off_y = 0
+
+                new_w = max(1, int(pix.width() * scale)); new_h = max(1, int(pix.height() * scale))
+                scaled_pix = pix.scaled(new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+                draw_x = (canvas_w - new_w) // 2 + off_x; draw_y = (canvas_h - new_h) // 2 + off_y
+                
+                p = QPainter(target_pix); p.setRenderHint(QPainter.Antialiasing); p.setRenderHint(QPainter.SmoothPixmapTransform)
+                p.drawPixmap(int(draw_x), int(draw_y), scaled_pix); p.end()
         
         self.w.bg_img.resize(canvas_w, canvas_h); self.w.bg_img.setPixmap(target_pix); self.w.bg_img.show(); self.w.bg_img.move(0, 0)
 
@@ -70,13 +73,11 @@ class PreviewRenderer:
 
         # -- Metrics & Setup --
         is_incognito = self.w.chk_incognito.isChecked()
-        browser_mode = self.w.browser_combo.currentText() # Chrome, Brave, Edge
+        browser_mode = self.w.browser_combo.currentText() 
         
         frame_h = 56 if browser_mode != "Edge" else 48
         tabs_h = 38
-        # Combined height for the "Frame Image" area
         top_area_h = frame_h + tabs_h
-        
         toolbar_h = 44
         
         k_frame = "frame_incognito" if is_incognito else "frame"
@@ -90,11 +91,20 @@ class PreviewRenderer:
         col_toolbar = self.c('toolbar', '#FFFFFFFF')
         col_toolbar_text = self.c('toolbar_text', '#333333FF')
         col_bookmark_text = self.c('bookmark_text', '#555555FF')
+        col_button_tint = self.c('button_tint', '#555555FF') # NEW: for Nav buttons
+        
+        # Omnibox Colors: Auto-select based on incognito state
+        if is_incognito:
+            col_omni_bg = self.c('omnibox_background_incognito', '#3C4043FF')
+            col_omni_text = self.c('omnibox_text_incognito', '#E8EAEDFF')
+        else:
+            col_omni_bg = self.c('omnibox_background', '#F0F0F0FF')
+            col_omni_text = self.c('omnibox_text', '#000000FF')
 
-        # 1. Background Color for Top Area (Frame + Tabs)
+        # 1. Background Color for Top Area
         p.fillRect(0, 0, w, top_area_h, col_frame)
         
-        # 2. Frame Image (Rendered over the entire top area)
+        # 2. Frame Image
         k_frame_img = "frame_image_incognito" if is_incognito else "frame_image"
         img_path = self.w.theme_data.get(k_frame_img)
         has_image = False
@@ -113,20 +123,12 @@ class PreviewRenderer:
                     scale = 120.0 / pix.height(); off_x = 0; off_y = 0
                 
                 scaled = pix.scaled(int(pix.width() * scale), int(pix.height() * scale), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                # Align logic: Center vertically within the reference 120px height, then clip to our top area
                 sy = max(0, (scaled.height() - 120) // 2)
-                
-                # Destination: The combined top area
-                # Source: The image crop
                 src_rect = QRect(max(0, off_x), max(0, sy + off_y), w, top_area_h)
                 p.drawPixmap(QRect(0, 0, w, top_area_h), scaled, src_rect)
 
-        # 3. Tab Strip Background (Optional Tint)
+        # 3. Tab Strip Background
         tabs_y = frame_h
-        
-        # Only draw the "darker" strip if there is NO image, 
-        # OR you can make it semi-transparent to tint the image.
-        # For now, if there is an image, we assume the image provides the texture.
         if not has_image:
              p.fillRect(0, tabs_y, w, tabs_h, col_frame.darker(108))
 
@@ -135,7 +137,6 @@ class PreviewRenderer:
         tab_h = tabs_h - 8
         tab_y = tabs_y + 4
         fm = QFontMetrics(font)
-        
         radius = 4 if browser_mode == "Edge" else 8
 
         # Inactive Tab
@@ -152,7 +153,6 @@ class PreviewRenderer:
         x += tab_w + 10
         rect = QRect(x, tab_y, tab_w, tab_h)
         if browser_mode == "Chrome":
-             # Connect to toolbar visually
              p.setBrush(col_active_tab)
              p.drawRoundedRect(rect.x(), rect.y(), rect.width(), rect.height() + 5, radius, radius)
         else:
@@ -167,19 +167,22 @@ class PreviewRenderer:
         toolbar_y = tabs_y + tabs_h
         p.fillRect(0, toolbar_y, w, toolbar_h, col_toolbar)
 
-        # URL Bar
-        p.setFont(font); p.setPen(col_toolbar_text)
+        # URL Bar (Search Bar)
+        p.setFont(font); 
+        
+        # USE BUTTON TINT FOR ARROWS
+        p.setPen(col_button_tint)
         p.drawText(15, toolbar_y + 28, "<")
         p.drawText(40, toolbar_y + 28, ">")
         
         url_rect = QRect(70, toolbar_y + 8, w - 140, toolbar_h - 16)
-        p.setBrush(QColor(240, 240, 240) if col_toolbar.lightness() > 128 else QColor(40, 40, 40))
+        
+        p.setBrush(col_omni_bg)
         p.setPen(Qt.NoPen)
         p.drawRoundedRect(url_rect, 14, 14)
         
-        p.setPen(col_toolbar_text)
+        p.setPen(col_omni_text)
         
-        # BRAVE LION ICON
         text_x = url_rect.x() + 12
         if browser_mode == "Brave":
             p.drawText(text_x, url_rect.y() + 20, "🦁")
