@@ -1,11 +1,39 @@
-\# Changelog
+***
 
+### `CHANGELOG.md`
 
-
+```markdown
+# Changelog
 
 All notable changes to the "Chromium Theme Studio" project will be documented in this file.
 
+## [v2.3.7] - 2025-12-24
 
+### ✨ New Features
+- **Spotlight FX (Torch Mode):**
+    - Introduced a physics-based visual overlay where the cursor acts as a dynamic light source.
+    - **Universal Magnetism:** The light now magnetically snaps to *all* buttons and tiles, not just presets.
+    - **Re-Ignition Physics:** Added a "Pop" effect where the light resets its radius to 0 and grows back when disconnecting from a target.
+    - **Shape Morphing:** The spotlight smoothly transforms into a rounded rectangle (8px radius) when locked onto targets.
+- **Settings Overhaul:**
+    - Refactored Settings into tabs: **General**, **Appearance**, and **Advanced**.
+    - **Spotlight Customization:** Added sliders for Beam Radius, Magnetic Pull Strength, and **Intensity (Opacity)**.
+    - Added dedicated color pickers for Spotlight states in both Light and Dark modes.
+
+### ⚡ Improvements & Fixes
+- **UI/UX Polish:**
+    - **Gradient Sliders:** Rewrote `GradientSlider` to use native Qt Stylesheets, fixing visibility issues where the track appeared white/transparent.
+    - **Button Padding:** Optimized padding on small buttons so navigation symbols (`<`, `>`) are no longer clipped.
+    - **Dark Mode Consistency:** Fixed inconsistent text colors on labels and checkboxes when switching themes.
+- **Light Mode Fixes:**
+    - Solved an issue where the Settings Page background remained dark in Light Mode.
+    - Fixed "White-on-White" text visibility issues by enforcing explicit stylesheet rules.
+    - Changed Spotlight blend mode from `Overlay` to `SourceOver` to ensure visibility on light backgrounds.
+- **Performance:**
+    - Added exclusion zones to prevent the Spotlight from magnetizing to the Top Bar or Settings/Export pages.
+    - Optimized mouse tracking to use `QCursor.pos()` for accurate global coordinates.
+
+---
 
 ## [v2.2.0] - 2025-12-23
 
@@ -25,67 +53,30 @@ All notable changes to the "Chromium Theme Studio" project will be documented in
     - Restyled the **Fullscreen** button to match the app's professional aesthetic.
     - Reverted the selection indicator line on menu tiles to its optimal position.
 - **Menu UX:** Implemented "Accordion" behavior—opening one menu group (like "Basic") now automatically closes others to keep the interface clean.
-- **Export Engine:** Updated `ExportManager` to fully support the new Omnibox and Background keys in the generated `manifest.json`.
+- **Export Logic:** Added safety checks to prevent crashes if metadata fields are empty.
+
+---
+
+## [v2.1.0] - 2025-12-22
+
+### ✨ Features
+- **Undo/Redo System:** Implemented a robust History Manager.
+    - Use `Ctrl+Z` to Undo.
+    - Use `Ctrl+Y` to Redo.
+- **App Styling:**
+    - Added a comprehensive `AppStyles` class to centralize Light/Dark themes.
+    - Improved scrollbar styling for a modern feel.
 
 ### 🐛 Bug Fixes
-- **Settings Persistence:** Fixed a critical issue where "Always Dark Mode" and other preferences were not saving to disk or restoring upon restart.
-- **Search Bar Logic:** Removed automatic color override on the search bar; it now strictly follows user settings.
-- **Menu Organization:** Moved "Frame" into a new **"Basic"** group and removed the redundant "Text" button from the Toolbar section.
+- Fixed an issue where the preview would desync after loading a saved JSON file.
+- Corrected the `manifest.json` generation logic for "Incognito" frame colors.
 
+---
 
+## [v2.0.0] - 2025-12-20
 
-## [2.0.5] - 22/12/2025
-
-### 🐛 Bug Fixes
-* **Image Persistence:** Fixed a bug where image parameters (scale/position) were resetting to defaults when switching editing modes.
-* **NTP Image Visibility:** Fixed an issue where the New Tab Page background image was hidden behind the UI layer in the preview.
-* **Guide Resize:** The red dotted guide overlay now correctly resizes when applying custom resolutions.
-
-
-
-\## \[2.0.0] - 21/12/2025
-
-\### 🚀 Major Rewrite (V2)
-
-We have completely structured the application from a single script into a professional, modular architecture. This improves stability, performance, and makes future updates much faster.
-
-
-
-\### ✨ New Features
-
-\* \*\*Incognito Mode Support:\*\* You can now design the "Incognito" (Private) window style separately from the normal window.
-
-\* \*\*Undo/Redo System:\*\* Made a mistake? Use `Ctrl+Z` to Undo and `Ctrl+Y` to Redo your changes.
-
-\* \*\*Settings Page:\*\* A new dedicated settings tab allows you to:
-
-&nbsp;   \* Toggle the app's own Dark/Light mode.
-
-&nbsp;   \* Enable "Auto-increment Version" to automatically bump version numbers on export.
-
-&nbsp;   \* Choose your preferred target browser for previews (Chrome, Brave, Edge).
-
-\* \*\*Theme Presets:\*\* Added a "Presets" dropdown with popular styles (Dracula, Midnight, Solarized, High Contrast) to help you get started quickly.
-
-\* \*\*Fullscreen Preview:\*\* Added a fullscreen button (`⛶`) to inspect your theme on a clean, black canvas.
-
-
-
-\### ⚡ Improvements
-
-\* \*\*Visual Overhaul:\*\* The UI has been refreshed with a cleaner "Top Bar" layout, sliding animations, and improved spacing.
-
-\* \*\*Brave \& Edge Support:\*\* The preview engine now accurately simulates the tab shapes and colors of Brave and Microsoft Edge.
-
-\* \*\*Smart Sliders:\*\* RGB sliders now support direct text input and keyboard navigation.
-
-
-
-\### 🛠️ Technical
-
-\* \*\*Refactored Codebase:\*\* Split the monolithic `main\_window.py` into separate modules (`ui/`, `logic/`, `render/`) for better maintainability.
-
-\* \*\*Windows Integration:\*\* Added `AppUserModelID` support to fix taskbar icon grouping on Windows 10/11.
-
-\* \*\*Manifest V3:\*\* The exporter now generates fully compliant Manifest V3 theme packages.
-
+### 🚀 Major Release (Re-write)
+- **New Architecture:** Completely rewrote the codebase from scratch using `PySide6` (Qt for Python).
+- **Modular Design:** Split the monolithic script into `ui/`, `logic/`, `render/`, and `utils/` packages.
+- **Live Preview Engine:** Created a `PreviewRenderer` that accurately mimics Chrome's UI layering (Frame -> Tab -> Toolbar -> NTP).
+- **Drag & Drop:** Added support for dropping images directly onto the canvas.
