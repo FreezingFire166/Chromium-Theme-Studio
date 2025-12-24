@@ -60,12 +60,39 @@ class PersistentSettings:
     def get_verbose_logs(self): return self.settings.value("verbose_logs", "false") == "true"
     def set_verbose_logs(self, val): self.settings.setValue("verbose_logs", "true" if val else "false")
 
-    # --- UI ---
+    # --- UI & Spotlight ---
     def get_dark_mode(self): return self.settings.value("dark_mode", "false") == "true"
     def set_dark_mode(self, val): self.settings.setValue("dark_mode", "true" if val else "false")
     
     def get_animations(self): return self.settings.value("animations", "true") == "true"
     def set_animations(self, val): self.settings.setValue("animations", "true" if val else "false")
+    
+    def get_spotlight_enabled(self): return self.settings.value("spotlight_enabled", "true") == "true"
+    def set_spotlight_enabled(self, val): self.settings.setValue("spotlight_enabled", "true" if val else "false")
+
+    # --- Spotlight Customization ---
+    def get_spot_radius(self): return int(self.settings.value("spot_radius", 80)) # Increased default
+    def set_spot_radius(self, val): self.settings.setValue("spot_radius", val)
+
+    def get_spot_strength(self): return float(self.settings.value("spot_strength", 0.15))
+    def set_spot_strength(self, val): self.settings.setValue("spot_strength", val)
+
+    # NEW: Opacity/Intensity Setting (1.0 = Max, 0.0 = Invisible)
+    def get_spot_opacity(self): return float(self.settings.value("spot_opacity", 0.85))
+    def set_spot_opacity(self, val): self.settings.setValue("spot_opacity", val)
+
+    # Colors
+    def get_spot_light_base(self): return self.settings.value("spot_c_lb", "#FBC02D") # Gold (No Alpha here)
+    def set_spot_light_base(self, val): self.settings.setValue("spot_c_lb", val)
+
+    def get_spot_light_active(self): return self.settings.value("spot_c_la", "#F50057") # Pink
+    def set_spot_light_active(self, val): self.settings.setValue("spot_c_la", val)
+
+    def get_spot_dark_base(self): return self.settings.value("spot_c_db", "#FFD700") 
+    def set_spot_dark_base(self, val): self.settings.setValue("spot_c_db", val)
+
+    def get_spot_dark_active(self): return self.settings.value("spot_c_da", "#00FFFF") 
+    def set_spot_dark_active(self, val): self.settings.setValue("spot_c_da", val)
 
     # --- First Run ---
     def get_first_run(self): return self.settings.value("first_run", "true") == "true"

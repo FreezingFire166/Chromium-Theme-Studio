@@ -10,6 +10,7 @@ from ui.pages.export_page import ExportPage
 from ui.pages.help_page import HelpPage
 from ui.pages.home_page import HomePage
 from ui.styles.app_styles import AppStyles
+from ui.visuals.spotlight_overlay import SpotlightOverlay
 from logic.export_manager import ExportManager
 from utils.history_manager import HistoryManager
 from utils.persistent_settings import PersistentSettings
@@ -17,7 +18,7 @@ from utils.persistent_settings import PersistentSettings
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Chromium Theme Studio v2.0.5")
+        self.setWindowTitle("Chromium Theme Studio v2.3.7")
         self.resize(1400, 950)
         self.setAcceptDrops(True)
         self.p_settings = PersistentSettings() 
@@ -56,11 +57,15 @@ class MainWindow(QMainWindow):
 
         self.home_page = HomePage(self) 
         self.content_stack.addWidget(self.home_page)
+        
         self.page_settings = SettingsPage(self.p_settings)
+        # Connect signals
         self.page_settings.toggle_dark.stateChanged.connect(self.toggle_dark_mode)
         self.page_settings.combo_bg.currentIndexChanged.connect(self.apply_settings_changes)
         self.page_settings.chk_guides.stateChanged.connect(self.apply_settings_changes)
         self.page_settings.combo_target.currentTextChanged.connect(self.apply_settings_changes)
+        self.page_settings.chk_spot.stateChanged.connect(self.apply_settings_changes)
+        
         self.content_stack.addWidget(self.page_settings)
         self.page_export = ExportPage(self.p_settings)
         self.page_export.start_export_signal.connect(self.handle_export_request)
@@ -68,12 +73,16 @@ class MainWindow(QMainWindow):
         self.page_help = HelpPage()
         self.content_stack.addWidget(self.page_help)
 
-        # UPDATED: F11 Shortcut added
         QShortcut(QKeySequence("Ctrl+Z"), self).activated.connect(self.perform_undo)
         QShortcut(QKeySequence("Ctrl+Y"), self).activated.connect(self.perform_redo)
         QShortcut(QKeySequence(Qt.Key_Escape), self).activated.connect(self.home_page.exit_fullscreen)
         QShortcut(QKeySequence(Qt.Key_F11), self).activated.connect(self.home_page.toggle_fullscreen)
 
+        # Spotlight Overlay
+        self.spotlight = SpotlightOverlay(self)
+        self.spotlight.resize(self.size())
+        self.spotlight.raise_()
+        
         if self.p_settings.get_dark_mode():
             self.apply_dark_theme()
         else:
@@ -98,6 +107,10 @@ class MainWindow(QMainWindow):
             else: self.home_page.set_mode("ntp_image")
             self.home_page.load_image_from_path(file_path)
             event.accept()
+
+    def resizeEvent(self, event):
+        if hasattr(self, 'spotlight'): self.spotlight.resize(self.size())
+        super().resizeEvent(event)
 
     def switch_view(self, index):
         self.content_stack.setCurrentIndex(index)
@@ -166,16 +179,33 @@ class MainWindow(QMainWindow):
         if choice in presets: self.save_state_to_history(); self.theme_data.update(presets[choice]); self.home_page.refresh_from_data(); self.combo_presets.setCurrentIndex(0)
 
     def apply_settings_changes(self):
+        # Canvas Settings
         bg_mode = self.page_settings.combo_bg.currentText()
         if bg_mode == "Solid Dark": self.home_page.canvas.setStyleSheet("background-color: #202124; border-radius: 6px;")
         elif bg_mode == "Solid Light": self.home_page.canvas.setStyleSheet("background-color: #FFFFFF; border-radius: 6px;")
         else: self.home_page.canvas.setStyleSheet("background-color: #E0E0E0; border-radius: 6px;")
+        
         self.home_page.guides_layer.setVisible(self.page_settings.chk_guides.isChecked())
         target = self.page_settings.combo_target.currentText().split(" ")[0]
         if self.home_page.browser_combo.currentText() != target:
              idx = self.home_page.browser_combo.findText(target, Qt.MatchStartsWith)
              if idx >= 0: self.home_page.browser_combo.setCurrentIndex(idx)
         self.home_page.renderer.apply_theme()
+        
+        # Spotlight Settings
+        is_spot_enabled = self.page_settings.chk_spot.isChecked()
+        self.spotlight.set_active_state(is_spot_enabled)
+        
+        # Push new custom values (including Opacity)
+        self.spotlight.update_settings(
+            self.p_settings.get_spot_radius(),
+            self.p_settings.get_spot_strength(),
+            self.p_settings.get_spot_opacity(), # <--- NEW Opacity
+            self.p_settings.get_spot_light_base(),
+            self.p_settings.get_spot_light_active(),
+            self.p_settings.get_spot_dark_base(),
+            self.p_settings.get_spot_dark_active()
+        )
 
     def toggle_main_toggle(self):
         state = self.home_page.theme_toggle.isChecked()
@@ -185,6 +215,9 @@ class MainWindow(QMainWindow):
     def toggle_dark_mode(self, checked):
         self.p_settings.set_dark_mode(checked)
         if self.home_page.theme_toggle.isChecked() != checked: self.home_page.theme_toggle.setChecked(checked)
+        
+        self.spotlight.set_theme_mode(checked)
+        
         if checked: self.apply_dark_theme()
         else: self.apply_light_theme()
 
@@ -193,11 +226,14 @@ class MainWindow(QMainWindow):
         self.home_page.menu_frame.setObjectName("menu_frame"); self.home_page.ctrl_frame.setObjectName("ctrl_frame")
         self.top_bar.btn_title.setStyleSheet("background: transparent; border: none; font-weight: bold; font-size: 15px; text-align: left; color: #202124;")
         self.top_bar.btn_settings.setStyleSheet("background: transparent; border: none; font-size: 13px; color: #5F6368; padding: 5px; font-weight: 600;")
+        self.spotlight.set_theme_mode(False)
+
     def apply_dark_theme(self):
         self.setStyleSheet(AppStyles.get_dark_stylesheet())
         self.home_page.menu_frame.setObjectName("menu_frame"); self.home_page.ctrl_frame.setObjectName("ctrl_frame")
         self.top_bar.btn_title.setStyleSheet("background: transparent; border: none; font-weight: bold; font-size: 15px; text-align: left; color: #E8EAED;")
         self.top_bar.btn_settings.setStyleSheet("background: transparent; border: none; font-size: 13px; color: #B0B3B8; padding: 5px; font-weight: 600;")
+        self.spotlight.set_theme_mode(True)
 
     def reset_theme_defaults(self):
         if QMessageBox.question(self, "Reset", "Reset to default?") == QMessageBox.Yes: self.theme_data = self.default_theme_data.copy(); self.home_page.refresh_from_data()
