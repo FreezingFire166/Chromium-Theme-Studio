@@ -24,6 +24,8 @@ class ExportManager:
                         parts[-1] = str(int(parts[-1]) + 1)
                         ver = ".".join(parts)
 
+                # Generate a 1x1 transparent overlay
+                # We will use this for both 'theme_frame_overlay' and 'theme_window_control_background'
                 overlay_pix = QPixmap(1, 1); overlay_pix.fill(Qt.transparent)
                 overlay_pix.save(os.path.join(images_dir, "theme_frame_overlay.png"), "PNG")
 
@@ -36,7 +38,10 @@ class ExportManager:
                     "tab_background": ExportManager._hex_to_rgb_list(theme_data.get("inactive_tab", "#E68A8AFF")), 
                     "bookmark_text": ExportManager._hex_to_rgb_list(theme_data.get("bookmark_text", "#555555FF")), 
                     "ntp_text": ExportManager._hex_to_rgb_list(theme_data.get("toolbar_text", "#333333FF")), 
-                    "button_background": ExportManager._hex_to_rgb_list(theme_data.get("button_tint", "#555555FF")),
+                    
+                    # FIX 1: Force button_background to be fully transparent.
+                    # This prevents Chrome from painting a solid color block behind window controls.
+                    "button_background": [0, 0, 0, 0],
                     
                     # WIRED: Explicit mappings for the new options
                     "omnibox_background": ExportManager._hex_to_rgb_list(theme_data.get("omnibox_background", "#F0F0F0FF")),
@@ -49,18 +54,37 @@ class ExportManager:
 
                 manifest = { 
                     "manifest_version": 3, "version": ver, "name": export_data["meta_name"], "description": export_data["meta_desc"],
-                    "theme": { "colors": colors, "images": { "theme_frame_overlay": "images/theme_frame_overlay.png" } } 
+                    "theme": { 
+                        "colors": colors, 
+                        "images": { 
+                            "theme_frame_overlay": "images/theme_frame_overlay.png",
+                            # FIX 2: Define a transparent background for window controls to stop Windows caption rendering fallback
+                            "theme_window_control_background": "images/theme_frame_overlay.png"
+                        } 
+                    } 
                 }
                 
+                # FIX 3: Add fallback keys for inactive states if images are present
                 if theme_data.get("frame_image"):
                     pix = renderer.get_processed_pixmap("frame_image")
-                    if pix: pix.save(os.path.join(images_dir, "theme_frame.png"), "PNG"); manifest["theme"]["images"]["theme_frame"] = "images/theme_frame.png"
+                    if pix: 
+                        pix.save(os.path.join(images_dir, "theme_frame.png"), "PNG")
+                        manifest["theme"]["images"]["theme_frame"] = "images/theme_frame.png"
+                        manifest["theme"]["images"]["theme_frame_inactive"] = "images/theme_frame.png" # Fallback
+
                 if theme_data.get("ntp_image"):
                     pix = renderer.get_processed_pixmap("ntp_image")
-                    if pix: pix.save(os.path.join(images_dir, "theme_ntp_background.png"), "PNG"); manifest["theme"]["images"]["theme_ntp_background"] = "images/theme_ntp_background.png"; manifest["theme"]["properties"] = { "ntp_background_alignment": "center bottom", "ntp_background_repeat": "no-repeat" }
+                    if pix: 
+                        pix.save(os.path.join(images_dir, "theme_ntp_background.png"), "PNG")
+                        manifest["theme"]["images"]["theme_ntp_background"] = "images/theme_ntp_background.png"
+                        manifest["theme"]["properties"] = { "ntp_background_alignment": "center bottom", "ntp_background_repeat": "no-repeat" }
+
                 if theme_data.get("frame_image_incognito"):
                     pix = renderer.get_processed_pixmap("frame_image_incognito")
-                    if pix: pix.save(os.path.join(images_dir, "theme_frame_incognito.png"), "PNG"); manifest["theme"]["images"]["theme_frame_incognito"] = "images/theme_frame_incognito.png"
+                    if pix: 
+                        pix.save(os.path.join(images_dir, "theme_frame_incognito.png"), "PNG")
+                        manifest["theme"]["images"]["theme_frame_incognito"] = "images/theme_frame_incognito.png"
+                        manifest["theme"]["images"]["theme_frame_incognito_inactive"] = "images/theme_frame_incognito.png" # Fallback
 
                 indent = None if is_log_enabled else 4
                 with open(os.path.join(tmp_dir, "manifest.json"), 'w') as f: json.dump(manifest, f, indent=indent)
