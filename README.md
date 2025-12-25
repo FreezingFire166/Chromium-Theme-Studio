@@ -2,7 +2,6 @@
 
 A professional, visual theme creator for Chromium-based browsers (Google Chrome, Brave, Microsoft Edge). Design your browser's look with a live preview and export it as a ready-to-install package.
 
-![App Screenshot](https://via.placeholder.com/800x450.png?text=Chromium+Theme+Studio+v2.3.7+Preview)
 
 ## 📥 Download (For Users)
 **You do not need to know how to code to use this.**
